@@ -210,46 +210,132 @@ function drawOverlay(msg, sub) {
   ctx.fillText('— press Space or tap to begin —', W/2, H/2 + 62);
 }
 
+// Function that checks if the Pegasus collides with a column
 function checkCollision(col) {
-  const hw = PEG_W * 0.26, hh = PEG_H * 0.26;
-  const inX = peg.x + hw > col.x && peg.x - hw < col.x + COL_W;
+
+  // Define half-width and half-height of the Pegasus hitbox
+  // (smaller than the image so collision feels fair)
+  const hw = PEG_W * 0.26;
+  const hh = PEG_H * 0.26;
+
+  // Check if Pegasus is horizontally overlapping the column
+  const inX =
+    peg.x + hw > col.x &&        // right side of Pegasus past left side of column
+    peg.x - hw < col.x + COL_W;  // left side of Pegasus before right side of column
+
+  // If Pegasus is not horizontally inside the column area, no collision
   if (!inX) return false;
-  return peg.y - hh < col.topH || peg.y + hh > col.topH + COL_GAP;
+
+  // If horizontally aligned, check vertical collision:
+  // Either Pegasus hits the top column OR the bottom column
+  return (
+    peg.y - hh < col.topH ||                 // hits top column
+    peg.y + hh > col.topH + COL_GAP          // hits bottom column
+  );
 }
 
+
+// Main game loop
 function loop() {
+
+  // Schedule the next animation frame (runs ~60 times per second)
   requestAnimationFrame(loop);
+
+  // Increase frame counter (used for timing)
   frameCount++;
+
+  // Draw the background every frame
   drawBg();
+
+  // -----------------------------
+  // GAME RUNNING STATE
+  // -----------------------------
   if (state === 'playing') {
+
+    // Apply gravity to Pegasus vertical velocity
     peg.vy += GRAVITY;
+
+    // Update Pegasus vertical position
     peg.y += peg.vy;
-    if (cols.length === 0 || cols[cols.length-1].x < W - 220) spawnCol();
+
+    // Spawn new columns when last column moves far enough left
+    if (cols.length === 0 || cols[cols.length-1].x < W - 220) {
+      spawnCol();
+    }
+
+    // Move each column to the left
     for (let c of cols) {
       c.x -= COL_SPEED;
+
+      // Check if Pegasus passed the column (score point)
       if (!c.scored && c.x + COL_W < peg.x) {
-        c.scored = true; score++;
+        c.scored = true;
+        score++;
+
+        // Update best score
         if (score > best) best = score;
+
+        // Update score display in HTML
         document.getElementById('pts').textContent = score;
         document.getElementById('best').textContent = best;
       }
     }
+
+    // Remove columns that are off screen
     cols = cols.filter(c => c.x + COL_W > -20);
+
+    // Draw all columns
     cols.forEach(drawColumn);
+
+    // Draw Pegasus character
     drawPegasus();
+
+    // Draw score on screen
     drawScore();
-    for (let c of cols) if (checkCollision(c)) { state = 'dead'; break; }
-    if (peg.y + PEG_H/2 > H || peg.y - PEG_H/2 < 0) state = 'dead';
-  } else {
+
+    // Check collision with each column
+    for (let c of cols) {
+      if (checkCollision(c)) {
+        state = 'dead'; // game over
+        break;
+      }
+    }
+
+    // Check collision with top or bottom of screen
+    if (peg.y + PEG_H/2 > H || peg.y - PEG_H/2 < 0) {
+      state = 'dead';
+    }
+
+  }
+
+  // -----------------------------
+  // START OR DEAD STATE
+  // -----------------------------
+  else {
+
+    // Still draw columns and Pegasus
     cols.forEach(drawColumn);
     drawPegasus();
-    if (state === 'start') drawOverlay('Flappy Pegasus', 'The Harvard Advocate · Est. 1866');
-    else drawOverlay('Icarus Moment', 'The muse has left the building.');
+
+    // Show overlay text depending on game state
+    if (state === 'start') {
+      drawOverlay(
+        'Flappy Pegasus',
+        'The Harvard Advocate · Est. 1866'
+      );
+    }
+    else {
+      drawOverlay(
+        'Icarus Moment',
+        'The muse has left the building.'
+      );
+    }
   }
 }
 
+
+// Reset game variables (position, score, etc.)
 reset();
+
+// Start the animation loop
 loop();
-</script>
-</body>
-</html>
